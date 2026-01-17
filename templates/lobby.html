@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bài Ma Thuật - Lobby</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/lobby.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎴 BÀI MA THUẬT 🎴</h1>
+            <p class="subtitle">Chọn chế độ chơi và tạo phòng</p>
+        </header>
+
+        <div class="lobby-content">
+            <!-- Create Room Section -->
+            <div class="section">
+                <h2>🏠 Tạo Phòng Mới</h2>
+                <div class="create-room-form">
+
+                    <div class="form-group">
+                        <label>Chế độ bài:</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="mode" value="3" checked>
+                                <span class="radio-custom"></span>
+                                3 Lá Bài
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="mode" value="6">
+                                <span class="radio-custom"></span>
+                                6 Lá Bài
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maxBoosts">Số lần Boost tối đa:</label>
+                        <select id="maxBoosts">
+                            <option value="1">1 lần</option>
+                            <option value="2">2 lần</option>
+                            <option value="3" selected>3 lần</option>
+                            <option value="5">5 lần</option>
+                            <option value="10">10 lần</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Số bộ bài:</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="decks" value="1" checked>
+                                <span class="radio-custom"></span>
+                                1 Bộ Bài (52 lá)
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="decks" value="2">
+                                <span class="radio-custom"></span>
+                                2 Bộ Bài (104 lá)
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="decks" value="3">
+                                <span class="radio-custom"></span>
+                                3 Bộ Bài (156 lá)
+                            </label>
+                        </div>
+                    </div>
+
+
+                    <button class="btn btn-primary" id="createRoomBtn">
+                        <span>✨</span> Tạo Phòng
+                    </button>
+                </div>
+            </div>
+
+            <!-- Join Room Section -->
+            <div class="section">
+                <h2>🚪 Tham Gia Phòng</h2>
+                <div class="join-room-form">
+                    <div class="form-group">
+                        <label for="roomId">ID Phòng:</label>
+                        <input type="text" id="roomId" placeholder="Nhập ID phòng (VD: ABC123)" maxlength="6">
+                    </div>
+
+                    <button class="btn btn-secondary" id="joinRoomBtn">
+                        <span>🎯</span> Tham Gia
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Room Info Section (shown after creating room) -->
+        <div class="room-created-section" id="roomCreatedSection" style="display: none;">
+            <h2>🏠 Phòng Đã Tạo</h2>
+            <div class="room-info">
+                <p><strong>ID Phòng:</strong> <span id="roomIdDisplay"></span></p>
+                <p><strong>Chế độ:</strong> <span id="roomModeDisplay"></span></p>
+                <p><strong>Boost tối đa:</strong> <span id="roomBoostDisplay"></span></p>
+            </div>
+            <div class="room-actions">
+                <button class="btn btn-success" id="enterRoomBtn">
+                    <span>🚪</span> Đi Vào Phòng
+                </button>
+                <button class="btn btn-info" id="copyRoomIdBtn">
+                    <span>📋</span> Sao Chép ID
+                </button>
+                <button class="btn btn-primary" id="copyRoomUrlBtn">
+                    <span>🔗</span> Sao Chép URL
+                </button>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <h3>🎮 Hướng dẫn chơi:</h3>
+            <div class="instruction-item">
+                <i>1.</i> Mỗi người chơi độc lập với giao diện riêng
+            </div>
+            <div class="instruction-item">
+                <i>2.</i> Chọn 1 lá bài để hoán đổi
+            </div>
+            <div class="instruction-item">
+                <i>3.</i> Nhấn "Hoán bài" để chọn lá bài mong muốn
+            </div>
+            <div class="instruction-item">
+                <i>4.</i> Nói "nam mô a di đà phật" để tăng tỉ lệ (1%-30%, không giới hạn lượt)
+            </div>
+            <div class="instruction-item">
+                <i>5.</i> Chà màn hình để tích năng lượng
+            </div>
+            <div class="instruction-item">
+                <i>6.</i> Lá bài đã được sử dụng sẽ bị khóa cho tất cả người chơi
+            </div>
+        </div>
+
+        <!-- Detailed Card Swap Explanation -->
+        <div class="instruction-section">
+            <h3>💡 Chi Tiết Hoán Bài</h3>
+
+            <div class="instruction-item">
+                <strong>🎯 Cách Hoán Bài Hoạt Động:</strong><br>
+                - Bạn chọn lá muốn hoán + giá trị mong muốn (A,2,3,...,K)<br>
+                - Hệ thống tạo "pool" lá bài + lá trắng nếu thiếu:<br>
+                  • 1%: Tối thiểu 10 lá → thiếu thì thêm ⚪ lá trắng<br>
+                  • 10%: Tối thiểu 10 lá → thiếu thì thêm ⚪ lá trắng<br>
+                  • 20%: Tối thiểu 5 lá → thiếu thì thêm ⚪ lá trắng<br>
+                  • 30%: Tối thiểu 3 lá → thiếu thì thêm ⚪ lá trắng<br>
+                - Random chọn 1 lá từ pool → lá thật: hoán đổi | ⚪ trắng: giữ nguyên
+            </div>
+
+            <div class="instruction-item">
+                <strong>📊 Tỉ Lệ Thành Công (Logic Thực Tế):</strong><br>
+
+                <div class="rate-section">
+                    <div class="rate-row">
+                        <span class="rate-badge">0 lần</span>
+                        <span class="rate-arrow">→</span>
+                        <span class="rate-value">1%</span>
+                        <span class="rate-detail">Pool 10 lá</span>
+                    </div>
+
+                    <div class="rate-row">
+                        <span class="rate-badge">1+ lần</span>
+                        <span class="rate-arrow">→</span>
+                        <span class="rate-value">10%</span>
+                        <span class="rate-detail">Desired + 9 random</span>
+                    </div>
+
+                    <div class="rate-row">
+                        <span class="rate-badge">2+ lần</span>
+                        <span class="rate-arrow">→</span>
+                        <span class="rate-value">20%</span>
+                        <span class="rate-detail">Desired + 4 random</span>
+                    </div>
+
+                    <div class="rate-row">
+                        <span class="rate-badge">3+ lần</span>
+                        <span class="rate-arrow">→</span>
+                        <span class="rate-value">30%</span>
+                        <span class="rate-detail">Desired + 2 random</span>
+                    </div>
+                </div>
+
+                <div class="rate-footer">
+                    <div class="footer-note">
+                        <span class="note-icon">⚪</span>
+                        <span class="note-text"><strong>Trắng:</strong> Không hoán đổi, giữ nguyên lá cũ</span>
+                    </div>
+                    <div class="footer-note">
+                        <span class="note-icon">🔄</span>
+                        <span class="note-text"><strong>Reset:</strong> Về 1% sau mỗi hoán thành công</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Messages -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/lobby.js') }}"></script>
+</body>
+</html>

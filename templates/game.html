@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bài Ma Thuật - Phòng {{ room_id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/game.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header> 
+            <p class="subtitle">Phòng: {{ room_id }}</p>
+        </header>
+
+        <div class="game-info">
+            <div class="info-row">
+                <div class="info-item">
+                    <div class="info-label">Tỉ lệ hoán bài</div>
+                    <div class="info-value" id="boostChance">1%</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Lượt hoán còn lại</div>
+                    <div class="info-value" id="swapsRemaining">3</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Người chơi</div>
+                    <div class="info-value" id="totalPlayers">0</div>
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-item">
+                    <div class="info-label">Đã úp bài</div>
+                    <div class="info-value" id="foldedCount">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Sẵn sàng ván mới</div>
+                    <div class="info-value" id="readyCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-content">
+
+        <div class="cards-container" id="cardsContainer">
+            <!-- Cards will be generated here -->
+        </div>
+
+        <!-- Energy display hidden - only shown in swap overlay -->
+        <div class="energy-container" style="display: none;">
+            <div class="energy-label">
+                <span>Năng lượng hoán bài</span>
+                <span id="energyPercent">0%</span>
+            </div>
+            <div class="energy-bar">
+                <div class="energy-fill" id="energyFill"></div>
+            </div>
+            <div class="speed-display">Tốc độ chà: <span id="speedDisplay">0</span> pixel/giây</div>
+            <div class="finger-count" id="fingerCount">Ngón tay: 0/4</div>
+        </div>
+
+        <!-- Boost Info Popup Overlay -->
+        <div class="boost-info-popup" id="boostInfo" style="display: none;">
+            <div class="popup-overlay"></div>
+            <div class="popup-content">
+                <div class="popup-header">
+                    <h3>🔮 Chế độ Tăng Tỉ Lệ</h3>
+                    <button class="popup-close" id="closeBoostInfo">✕</button>
+                </div>
+                <div class="popup-body">
+                    <div class="chant-display">
+                        <div class="chant-bubble" id="chant1">1</div>
+                        <div class="chant-bubble" id="chant2">2</div>
+                        <div class="chant-bubble" id="chant3">3</div>
+                    </div>
+                    <p id="chantInstruction">Nói "nam mô a di đà phật" để tăng tỉ lệ khi hoán bài...</p>
+                    <div class="speech-display" id="speechDisplay" style="display: none;">
+                        <div class="speech-text" id="speechText">...</div>
+                        <button class="speech-ok-btn" id="speechOkBtn">OK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" id="swapBtn" disabled>
+                Hoán bài
+            </button>
+            <button class="control-btn" id="boostBtn">
+                Tăng tỉ lệ
+            </button>
+            <button class="control-btn" id="revealCardsBtn">
+                Mở bài
+            </button>
+            <button class="control-btn fold-btn" id="foldBtn">
+                Úp bài
+            </button>
+            <button class="control-btn new-round-btn" id="newRoundTriggerBtn" style="display: none;">
+                Ván mới
+            </button>
+        </div>
+
+        <div class="round-controls" id="roundControls" style="display: none;">
+            <button class="control-btn new-round-btn" id="newRoundBtn">
+                <span>🎯</span> Sẵn sàng màn mới
+            </button>
+            <div class="ready-status">
+                <span>Sẵn sàng: <span id="readyCount">0</span>/<span id="totalPlayers">1</span></span>
+            </div>
+        </div>
+
+
+        <!-- Swap Overlay -->
+        <div class="overlay" id="swapOverlay">
+            <div class="cancel-container">
+                <button class="cancel-btn" id="cancelOverlay">✕</button>
+            </div> 
+
+            <div class="overlay-energy">
+                <div class="energy-bar">
+                    <div class="energy-fill" id="overlayEnergyFill"></div>
+                </div>
+            </div>
+
+            <!-- Selected Card Display -->
+            <div class="selected-card-display" id="selectedCardDisplay">
+                <div class="selected-card-large" id="selectedCardLarge">
+                    <div class="card-value-large" id="selectedCardValue">--</div>
+                    <div class="card-suit-large" id="selectedCardSuit">--</div>
+                </div>
+                <!-- OK button - shown after swap completes -->
+                <div class="swap-completed" id="swapCompleted" style="display: none;">
+                    <button class="swap-ok-btn" id="swapOkBtn">OK</button>
+                </div>
+            </div>
+
+            <div class="touch-points">
+                <div class="touch-point" id="touch1">1</div>
+                <div class="touch-point" id="touch2">2</div>
+                <div class="touch-point" id="touch3">3</div>
+                <div class="touch-point" id="touch4">4</div>
+            </div>
+
+            
+        </div>
+
+        <!-- Card Selection Popup -->
+        <div class="card-selection-overlay" id="cardSelectionOverlay">
+            <div class="card-selection-popup">
+                <h2 class="popup-title">CHỌN LÁ BÀI MONG MUỐN</h2>
+                <p class="popup-description">Chọn lá bài bạn muốn có, sau đó nói thần chú để tăng tỉ lệ!</p>
+
+                <div class="card-dropdowns">
+                    <select class="card-dropdown" id="cardValueDropdown">
+                        <option value="">Chọn giá trị...</option>
+                        <option value="1">A</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">J</option>
+                        <option value="12">Q</option>
+                        <option value="13">K</option>
+                    </select>
+                </div>
+
+                <div class="popup-buttons">
+                    <button class="popup-btn cancel-btn" id="cancelCardSelection">Hủy</button>
+                    <button class="popup-btn confirm-btn" id="confirmCardSelection" disabled>Xác nhận & Hoán bài</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- New Round Waiting Popup -->
+        <div class="new-round-popup" id="newRoundPopup" style="display: none;">
+            <div class="popup-overlay"></div>
+            <div class="popup-content">
+                <div class="popup-header">
+                    <h3>🎯 CHỜ VÁN MỚI</h3>
+                    <button class="popup-close" id="closeNewRoundPopup">✕</button>
+                </div>
+                <div class="popup-body">
+                    <div class="waiting-animation">
+                        <div class="spinner"></div>
+                        <p>Đang chờ người chơi khác...</p>
+                    </div>
+                    <div class="ready-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="readyProgressFill"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span id="readyProgressText">0/0 người chơi đã sẵn sàng</span>
+                        </div>
+                    </div>
+                    <div class="ready-status-list" id="readyStatusList">
+                        <!-- Player ready status will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deck Suggestion Popup -->
+        <div class="deck-suggestion-popup" id="deckSuggestionPopup" style="display: none;">
+            <div class="popup-overlay"></div>
+            <div class="popup-content">
+                <div class="popup-header">
+                    <h3>⚠️ CẢNH BÁO SỐ LÁ BÀI</h3>
+                </div>
+                <div class="popup-body">
+                    <div class="warning-icon">🎴</div>
+                    <p class="warning-text">
+                        Bộ bài hiện tại chỉ còn <span id="remainingCardsCount">0</span> lá.<br>
+                        Điều này có thể làm giảm trải nghiệm chơi game do tỉ lệ ra lá hiếm không cao.
+                    </p>
+                    <p class="suggestion-text">
+                        <strong>Đề xuất:</strong> Tạo phòng mới với thêm 1 bộ bài (156 lá tổng cộng) để có trải nghiệm tốt hơn!
+                    </p>
+                </div>
+                <div class="popup-buttons">
+                    <button class="popup-btn cancel-btn" id="dismissDeckSuggestion">Để sau</button>
+                    <button class="popup-btn secondary-btn" id="dontShowDeckSuggestion">Không nhắc lại</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drag feedback -->
+        <div class="drag-feedback hidden" id="dragFeedback">Kéo lá bài để đổi vị trí</div>
+
+        <!-- Toast message -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        // Room ID from template
+        const ROOM_ID = '{{ room_id }}';
+
+        // Device detection - show only mobile message for non-desktop users
+        function isDesktop() {
+            // Check for desktop indicators
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+            const isTablet = /ipad|android(?!.*mobile)/i.test(userAgent);
+
+            // Also check screen size - consider desktop if width > 1024px
+            const isLargeScreen = window.innerWidth > 1024;
+
+            // Consider it desktop if not mobile/tablet AND has large screen
+            return !isMobile && !isTablet && isLargeScreen;
+        }
+
+        // Check device on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            /*
+            // Commented out: Lazy layout logic - will be used later
+            if (!isDesktop()) {
+                // Hide the game container and show only the mobile message
+                const container = document.querySelector('.container');
+                if (container) {
+                    container.innerHTML = '<div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-size: 24px; text-align: center; padding: 20px;">Game được tối ưu cho thiết bị di động. Vui lòng sử dụng điện thoại để có trải nghiệm tốt nhất! 📱</div>';
+                }
+                return; // Don't load the game
+            }
+            */
+
+            // For desktop users, continue with normal game loading
+            // The game.js script will be loaded below
+        });
+    </script>
+    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+</body>
+</html>
