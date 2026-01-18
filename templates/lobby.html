@@ -3,11 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bài Ma Thuật - Lobby</title>
+    <title>Thần Bài</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/lobby.css') }}">
 </head>
 <body>
     <div class="container">
+        <!-- Video Section -->
+        <div class="video-section">
+            <video controls autoplay muted loop class="game-video">
+                <source src="{{ url_for('static', filename='video.mp4') }}" type="video/mp4">
+                Trình duyệt của bạn không hỗ trợ video.
+            </video>
+        </div>
+
         <header class="header">
             <h1>🎴 BÀI MA THUẬT 🎴</h1>
             <p class="subtitle">Chọn chế độ chơi và tạo phòng</p>
@@ -118,19 +126,22 @@
                 <i>1.</i> Mỗi người chơi độc lập với giao diện riêng
             </div>
             <div class="instruction-item">
-                <i>2.</i> Chọn 1 lá bài để hoán đổi
+                <i>2.</i> Kéo và thả bài để di chuyển và sắp xếp
             </div>
             <div class="instruction-item">
-                <i>3.</i> Nhấn "Hoán bài" để chọn lá bài mong muốn
+                <i>3.</i> Chọn 1 lá bài để hoán đổi
             </div>
             <div class="instruction-item">
-                <i>4.</i> Nói "nam mô a di đà phật" để tăng tỉ lệ (1%-30%, không giới hạn lượt)
+                <i>4.</i> Nhấn "Hoán bài" để chọn lá bài mong muốn
             </div>
             <div class="instruction-item">
-                <i>5.</i> Chà màn hình để tích năng lượng
+                <i>5.</i> Nói "nam mô a di đà phật" để tăng tỉ lệ (1%-30%, không giới hạn lượt)
             </div>
             <div class="instruction-item">
-                <i>6.</i> Lá bài đã được sử dụng sẽ bị khóa cho tất cả người chơi
+                <i>6.</i> Chà màn hình để tích năng lượng
+            </div>
+            <div class="instruction-item">
+                <i>7.</i> Lá bài đã được sử dụng sẽ bị khóa cho tất cả người chơi
             </div>
         </div>
 
