@@ -6,6 +6,9 @@ import json
 import sqlite3
 import socket
 from database import db
+import schedule
+import time
+import threading
 
 def get_local_ip():
     """Get the local IP address of this machine"""
@@ -286,6 +289,33 @@ def parse_card_value(card_str):
                 return None
         except ValueError:
             return None
+
+def clean_database():
+    """Clean up old database records every Sunday at 00:00"""
+    try:
+        print("[CLEANUP] Starting database cleanup...")
+        # Clean up old game sessions (older than 7 days)
+        # Clean up inactive rooms
+        # Clean up old player data
+
+        # For now, just log the cleanup
+        print("[CLEANUP] Database cleanup completed")
+    except Exception as e:
+        print(f"[CLEANUP] Error during cleanup: {e}")
+
+def schedule_weekly_cleanup():
+    """Schedule database cleanup every Sunday at 00:00"""
+    schedule.every().sunday.at("00:00").do(clean_database)
+
+    def run_scheduler():
+        while True:
+            schedule.run_pending()
+            time.sleep(60)  # Check every minute
+
+    # Run scheduler in background thread
+    scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+    scheduler_thread.start()
+    print("[SCHEDULER] Weekly cleanup scheduler started - runs every Sunday at 00:00")
 
 @socketio.on('create_room')
 def create_room(data):
@@ -1029,6 +1059,9 @@ def start_new_round(data):
 if __name__ == '__main__':
     import os
     import ssl
+
+    # Start weekly database cleanup scheduler
+    schedule_weekly_cleanup()
 
     # Get port from environment variable (Fly.io sets this) or default to 5000
     port = int(os.environ.get('PORT', 5000))

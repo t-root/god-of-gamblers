@@ -272,12 +272,13 @@ function setupEventListeners() {
 
 // Socket Event Handlers
 socket.on('game_started', function(data) {
-
-    // Clear join timeout since game started successfully
-    if (joinTimeout) {
-        clearTimeout(joinTimeout);
-        joinTimeout = null;
-    }
+    // Preload all card images before setting up the game
+    preloadCardImages(() => {
+        // Clear join timeout since game started successfully
+        if (joinTimeout) {
+            clearTimeout(joinTimeout);
+            joinTimeout = null;
+        }
 
     gameState.cards = data.cards;
     gameState.usedCards = data.used_cards || [];
@@ -389,6 +390,7 @@ socket.on('game_started', function(data) {
 
 
     showToast('Trò chơi đã bắt đầu! Chơi độc lập với giao diện riêng.');
+    }); // End of preloadCardImages callback
 });
 
 socket.on('player_joined', function(data) {
@@ -599,6 +601,51 @@ socket.on('card_positions_swapped', function(data) {
 socket.on('error', function(data) {
     showToast(data.message, 'error');
 });
+
+// Preload all card images before showing them
+function preloadCardImages(callback) {
+    const imagePaths = [];
+    // Generate paths for all 52 cards (4 suits × 13 values)
+    const suits = ['s', 'h', 'd', 'c']; // spades, hearts, diamonds, clubs
+
+    for (let suit = 0; suit < 4; suit++) {
+        for (let value = 1; value <= 13; value++) {
+            const suitSymbol = suits[suit];
+            let valueSymbol;
+            if (value === 1) valueSymbol = 'a';
+            else if (value === 10) valueSymbol = 't';
+            else if (value === 11) valueSymbol = 'j';
+            else if (value === 12) valueSymbol = 'q';
+            else if (value === 13) valueSymbol = 'k';
+            else valueSymbol = value.toString();
+
+            imagePaths.push(`/static/img/${valueSymbol}${suitSymbol}.png`);
+        }
+    }
+
+    let loadedCount = 0;
+    const totalImages = imagePaths.length;
+
+    imagePaths.forEach(path => {
+        const img = new Image();
+        img.onload = () => {
+            loadedCount++;
+            if (loadedCount === totalImages) {
+                console.log('All card images preloaded successfully');
+                callback();
+            }
+        };
+        img.onerror = () => {
+            loadedCount++;
+            console.warn('Failed to load image:', path);
+            if (loadedCount === totalImages) {
+                console.log('Card image preloading completed (with some failures)');
+                callback();
+            }
+        };
+        img.src = path;
+    });
+}
 
 // Game Functions
 function selectCard(index) {
