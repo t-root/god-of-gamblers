@@ -404,12 +404,15 @@ socket.on('player_joined', function(data) {
 });
 
 socket.on('card_swapped', function(data) {
+   
     // Update used cards list
     gameState.usedCards = data.used_cards || [];
 
     // If this is the player who swapped, update their card
     if (data.player_id === socket.id && data.new_card) {
-
+      
+        gameState.cards[data.card_index] = data.new_card;
+        
         // Show the new card in the completion display
         showNewCardInCompletion(data.new_card);
 
@@ -428,9 +431,9 @@ socket.on('card_swapped', function(data) {
         showToast(`Có người đã sử dụng vị trí ${data.card_index + 1}`);
     }
 
-    // Update display to show disabled cards
+   
     updateCardDisplay();
-
+  
     // Update boost display after reset
     updateBoostDisplay();
 });
