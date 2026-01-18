@@ -105,6 +105,188 @@ def join_via_url(room_id):
     else:
         return redirect(url_for('lobby'))
 
+@app.route('/<room_id>/systemcall/<command>')
+def system_call(room_id, command):
+    """Handle system calls for special game commands"""
+    room_id = room_id.upper()
+    room_info = db.get_room_info(room_id)
+    if not room_info:
+        return redirect(url_for('join_via_url', room_id=room_id))
+
+    command = command.lower()
+
+    if command == 'openall':
+        # Force fold all players and flip all their cards immediately
+        current_round = db.get_current_round_number(room_id)
+        for player_id in room_info['players']:
+            # Fold player
+            db.fold_player(player_id, True, room_id, current_round)
+
+            # Flip all cards for this player
+            player_data = room_info['players'][player_id]
+            flipped_cards = list(range(len(player_data['cards'])))  # Flip all cards (indices 0, 1, 2, ...)
+
+            # Update flipped cards in database
+            db.update_player_flipped_cards(player_id, flipped_cards, room_id, current_round)
+
+            # Emit card flip events for each card
+            for card_index in range(len(player_data['cards'])):
+                socketio.emit('card_flipped', {
+                    'player_id': player_id,
+                    'card_index': card_index,
+                    'rotation': 180  # Full flip
+                }, room=room_id)
+
+        # Update room info after all players are folded
+        room_info_updated = db.get_room_info(room_id)
+        room_stats = get_room_stats(room_info_updated)
+
+        # Emit folded status for all players (like they folded themselves)
+        socketio.emit('all_players_folded_silently', {
+            'message': 'System: Tất cả người chơi đã buông bài',
+            **room_stats
+        }, room=room_id)
+
+        # Redirect back to game page
+        return redirect(url_for('join_via_url', room_id=room_id))
+
+    elif command == 'newround':
+        # Set all players as ready for new round
+        current_round = db.get_current_round_number(room_id)
+        for player_id in room_info['players']:
+            db.ready_player_for_new_round(player_id, True, room_id, current_round)
+
+        # Check if all players are ready and start new round
+        room_info_updated = db.get_room_info(room_id)
+        all_ready = all(player_data['ready_for_new_round'] for player_data in room_info_updated['players'].values())
+
+        if all_ready:
+            print(f"System call: All players ready in room {room_id}, starting new round...")
+            start_new_round_logic(room_id)
+
+        # Redirect back to game page
+        return redirect(url_for('join_via_url', room_id=room_id))
+
+    else:
+        # Handle card swap commands (format: card1-card2)
+        if '-' not in command:
+            return redirect(url_for('join_via_url', room_id=room_id))
+
+        card1_str, card2_str = command.split('-', 1)
+
+        # Parse card values
+        card1_value = parse_card_value(card1_str)
+        card2_value = parse_card_value(card2_str)
+
+        if card1_value is None or card2_value is None:
+            return redirect(url_for('join_via_url', room_id=room_id))
+
+        # LOGIC MỚI: Xử lý systemcall/thamso1-thamso2
+        # Bước 1: Tìm người chơi nào gọi systemcall này
+        if not room_info['players']:
+            return redirect(url_for('join_via_url', room_id=room_id))
+
+        # Trong implementation thực tế, cần xác định người gọi qua session/IP
+        # Hiện tại demo với người chơi đầu tiên
+        caller_player_id = list(room_info['players'].keys())[0]
+        caller_data = room_info['players'][caller_player_id]
+
+        # Bước 2: Kiểm tra người chơi có lá bài trùng với tham số đầu (card1_value) không
+        matching_cards_in_hand = []
+        for i, card in enumerate(caller_data['cards']):
+            if card['value'] == card1_value:
+                matching_cards_in_hand.append((i, card))  # (index_in_hand, card_data)
+
+        if not matching_cards_in_hand:
+            # Người chơi không có lá card1_value
+            socketio.emit('show_toast', {
+                'message': f'Lá bài {card1_value} bạn không có!',
+                'type': 'error'
+            }, to=caller_player_id)
+            return redirect(url_for('join_via_url', room_id=room_id))
+
+        # Bước 3: Nếu có 2 lá trùng thì chỉ quan tâm 1 lá (lá đầu tiên)
+        card_to_swap_index, old_card = matching_cards_in_hand[0]
+
+        # Bước 4: Tìm trong bộ bài còn lại có lá nào trùng với tham số 2 (card2_value) không
+        total_cards = 52 * room_info['decks']
+        all_used_cards = room_info['used_cards']
+        available_indices = [i for i in range(total_cards) if i not in all_used_cards]
+
+        card2_available_indices = []
+        for idx in available_indices:
+            value = (idx % 13) + 1
+            if value == card2_value:
+                card2_available_indices.append(idx)
+
+        if not card2_available_indices:
+            # Không còn lá card2_value trong bộ bài
+            socketio.emit('show_toast', {
+                'message': f'Trong bộ bài không còn lá {card2_value}!',
+                'type': 'error'
+            }, to=caller_player_id)
+            return redirect(url_for('join_via_url', room_id=room_id))
+
+        # Bước 5: Thực hiện hoán đổi và cập nhật realtime
+        old_card_index = old_card['index']
+        new_card_index = random.choice(card2_available_indices)
+
+        # Tạo lá bài mới
+        new_value = (new_card_index % 13) + 1
+        new_suit = new_card_index // 13
+        new_card = {'value': new_value, 'suit': new_suit, 'index': new_card_index}
+
+        # Cập nhật bài của người chơi
+        caller_data['cards'][card_to_swap_index] = new_card
+        current_round = db.get_current_round_number(room_id)
+        db.update_player_cards(caller_player_id, caller_data['cards'], room_id, current_round)
+
+        # Cập nhật danh sách bài đã dùng
+        used_cards = all_used_cards[:]
+        if old_card_index in used_cards:
+            used_cards.remove(old_card_index)
+        used_cards.append(new_card_index)
+        db.update_room_used_cards(room_id, used_cards)
+
+        # Thông báo thành công
+        socketio.emit('show_toast', {
+            'message': f'Đã hoán bài {card1_value} thành {card2_value}!',
+            'type': 'success'
+        }, to=caller_player_id)
+
+        # Emit event cập nhật realtime cho tất cả người chơi trong phòng
+        socketio.emit('card_swapped', {
+            'player_id': caller_player_id,
+            'card_index': card_to_swap_index,
+            'used_cards': used_cards,
+            'result': 'success',
+            'message': 'Hoán bài thành công',
+            'new_card': new_card,
+            'reset_chant_count': False
+        }, room=room_id)
+
+        # Redirect back to game page
+        return redirect(url_for('join_via_url', room_id=room_id))
+
+def parse_card_value(card_str):
+    """Parse card value from string (1-10, j, q, k) to integer"""
+    card_str = card_str.lower()
+    if card_str == 'j':
+        return 11
+    elif card_str == 'q':
+        return 12
+    elif card_str == 'k':
+        return 13
+    else:
+        try:
+            val = int(card_str)
+            if 1 <= val <= 10:
+                return val
+            else:
+                return None
+        except ValueError:
+            return None
+
 @socketio.on('create_room')
 def create_room(data):
     """Create a new room with settings"""
@@ -760,7 +942,7 @@ def start_new_round_logic(room_id):
         db.fold_player(player_id, False, room_id, next_round)
 
     # Notify all players
-    emit('new_round_started', {
+    socketio.emit('new_round_started', {
         'message': 'Ván mới đã bắt đầu!',
         'used_cards': room_info['used_cards'],
         'players_count': len(room_info['players'])
@@ -838,7 +1020,7 @@ def start_new_round(data):
                 all_owned_cards.append(card['index'])
 
     # Notify all players
-    emit('new_round_started', {
+    socketio.emit('new_round_started', {
         'message': 'Vòng mới đã bắt đầu!',
         'used_cards': all_owned_cards  # All owned cards after reset
     }, room=room_id)

@@ -16,7 +16,7 @@ socket.on('reconnect', function() {
 });
 
 // Clear join timeout on any socket error to prevent unwanted reloads
-socket.on('connect_error', function() {
+socket.on('connect_error', function(error) {
     if (joinTimeout) {
         clearTimeout(joinTimeout);
         joinTimeout = null;
@@ -173,7 +173,6 @@ function joinCurrentRoom() {
         playerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('gamePlayerId', playerId);
     }
-
 
     socket.emit('join_room', {
         room_id: ROOM_ID,
@@ -410,7 +409,6 @@ socket.on('card_swapped', function(data) {
 
     // If this is the player who swapped, update their card
     if (data.player_id === socket.id && data.new_card) {
-        gameState.cards[data.card_index] = data.new_card;
 
         // Show the new card in the completion display
         showNewCardInCompletion(data.new_card);
@@ -500,6 +498,43 @@ socket.on('player_folded', function(data) {
     }
 });
 
+socket.on('all_players_folded_silently', function(data) {
+    // Update room stats
+    updateRoomStats(data);
+
+    // Show toast notification
+    showToast(data.message, 'info');
+
+    // Update fold status for current player (they are now folded)
+    gameState.folded = true;
+    updateFoldStatusForAllPlayers(true);
+
+    // Disable all buttons as if player folded themselves
+    if (swapBtn) {
+        swapBtn.disabled = true;
+        swapBtn.style.opacity = '0.5';
+    }
+    if (boostBtn) {
+        boostBtn.disabled = true;
+        boostBtn.style.opacity = '0.5';
+    }
+    const revealCardsBtn = document.getElementById('revealCardsBtn');
+    if (revealCardsBtn) {
+        revealCardsBtn.disabled = true;
+    }
+
+    // Disable card clicking
+    const cards = document.querySelectorAll('.card');
+    cards.forEach(card => {
+        card.style.pointerEvents = 'none';
+        card.style.opacity = '0.7';
+    });
+});
+
+socket.on('show_toast', function(data) {
+    showToast(data.message, data.type || 'info');
+});
+
 socket.on('all_folded', function(data) {
     gameState.allFolded = true;
     updateRoomStats(data);
@@ -538,11 +573,16 @@ socket.on('chant_count_updated', function(data) {
 });
 
 socket.on('card_flipped', function(data) {
-    // Update other players' view when someone flips a card
-    if (data.player_id !== socket.id) {
-        // For now, just update display if needed
-        updateCardDisplay();
+    // Update card flipped state for any player (including current player from system calls)
+    if (data.player_id === socket.id) {
+        // This is the current player's card being flipped (possibly from system call)
+        if (!gameState.flippedCards.includes(data.card_index)) {
+            gameState.flippedCards.push(data.card_index);
+        }
     }
+
+    // Always update display when any card is flipped
+    updateCardDisplay();
 });
 
 socket.on('swap_failed', function(data) {
@@ -1750,12 +1790,12 @@ function updateCardDisplay() {
 
 // Get display value for card
 function getCardDisplayValue(value) {
-    switch(value % 13 + 1) {
+    switch(value) {
         case 1: return 'A';
         case 11: return 'J';
         case 12: return 'Q';
         case 13: return 'K';
-        default: return value % 13 + 1;
+        default: return value;
     }
 }
 
@@ -2095,7 +2135,6 @@ function initSpeechRecognition() {
     };
 
     recognition.onend = function() {
-        console.log('Speech recognition ended');
         gameState.isRecognitionActive = false;
         gameState.isRecognitionStopping = false;
         // Không auto-restart waiting dots - chỉ lắng nghe thôi
@@ -2135,9 +2174,7 @@ function startSpeechRecognition() {
     }
 
     try {
-        console.log('Starting speech recognition...');
         recognition.start();
-        console.log('Speech recognition started successfully');
     } catch(e) {
         console.error('Error starting speech recognition:', e);
         if (e.name === 'InvalidStateError') {
@@ -2842,6 +2879,121 @@ function resetDraggedCard() {
         gameState.draggedCard.style.top = '';
         gameState.draggedCard.style.zIndex = '';
     }
+}
+
+// Update fold status for all players when system call is used
+function updateFoldStatusForAllPlayers(folded) {
+    gameState.folded = folded;
+
+    // Update UI elements
+    const foldBtn = document.getElementById('foldBtn');
+    const newRoundTriggerBtn = document.getElementById('newRoundTriggerBtn');
+    const controls = document.querySelector('.controls');
+
+    if (folded) {
+        // When folded: hide fold button, show new round button
+        if (foldBtn) foldBtn.style.display = 'none';
+        if (newRoundTriggerBtn) {
+            newRoundTriggerBtn.style.display = 'flex';
+            // Add class to center the single button
+            if (controls) controls.classList.add('single-button');
+        }
+    } else {
+        // When not folded: show fold button, hide new round button
+        if (foldBtn) foldBtn.style.display = 'flex';
+        if (newRoundTriggerBtn) newRoundTriggerBtn.style.display = 'none';
+        if (controls) controls.classList.remove('single-button');
+    }
+}
+
+// Show all players' cards when all have folded
+function showAllPlayersCards(allPlayersCards) {
+    // Hide current game interface
+    const gameContainer = document.querySelector('.game-container');
+    if (gameContainer) {
+        gameContainer.style.display = 'none';
+    }
+
+    // Create or show all players cards overlay
+    let overlay = document.getElementById('allPlayersCardsOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'allPlayersCardsOverlay';
+        overlay.className = 'all-players-cards-overlay';
+        document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = '';
+    overlay.style.display = 'block';
+
+    // Title
+    const title = document.createElement('h2');
+    title.textContent = 'Kết Quả Tất Cả Người Chơi';
+    title.style.textAlign = 'center';
+    title.style.color = '#4ecdc4';
+    title.style.marginBottom = '30px';
+    overlay.appendChild(title);
+
+    // Create container for all players
+    const playersContainer = document.createElement('div');
+    playersContainer.className = 'all-players-container';
+
+    Object.entries(allPlayersCards).forEach(([playerId, playerData]) => {
+        const playerDiv = document.createElement('div');
+        playerDiv.className = 'player-cards-display';
+
+        // Player name
+        const playerName = document.createElement('h3');
+        playerName.textContent = playerData.name;
+        playerName.style.color = playerId === socket.id ? '#4ecdc4' : '#45b7d1';
+        playerName.style.textAlign = 'center';
+        playerName.style.marginBottom = '15px';
+        playerDiv.appendChild(playerName);
+
+        // Player's cards
+        const cardsContainer = document.createElement('div');
+        cardsContainer.className = 'player-cards-grid';
+
+        playerData.cards.forEach((card, index) => {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'card revealed';
+
+            const valueElement = document.createElement('div');
+            valueElement.className = 'card-value';
+            valueElement.textContent = getCardDisplayValue(card.value);
+
+            const suitElement = document.createElement('div');
+            suitElement.className = 'card-suit';
+            suitElement.textContent = getCardSuit(card.suit);
+
+            // Color based on suit
+            const isRed = card.suit === 0 || card.suit === 2; // Hearts and Diamonds
+            valueElement.style.color = isRed ? '#ff4757' : '#2f3542';
+            suitElement.style.color = isRed ? '#ff4757' : '#2f3542';
+
+            cardElement.appendChild(valueElement);
+            cardElement.appendChild(suitElement);
+            cardsContainer.appendChild(cardElement);
+        });
+
+        playerDiv.appendChild(cardsContainer);
+        playersContainer.appendChild(playerDiv);
+    });
+
+    overlay.appendChild(playersContainer);
+
+    // Add close button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Đóng';
+    closeBtn.className = 'btn btn-secondary';
+    closeBtn.style.marginTop = '30px';
+    closeBtn.onclick = () => {
+        overlay.style.display = 'none';
+        if (gameContainer) {
+            gameContainer.style.display = 'block';
+        }
+    };
+    overlay.appendChild(closeBtn);
 }
 
 function cleanupDragState() {
