@@ -604,34 +604,28 @@ socket.on('error', function(data) {
 
 // Preload all card images before showing them
 function preloadCardImages(callback) {
-    const imagePaths = [];
-    // Generate paths for all 52 cards (4 suits × 13 values)
-    const suits = ['s', 'h', 'd', 'c']; // spades, hearts, diamonds, clubs
-
-    for (let suit = 0; suit < 4; suit++) {
-        for (let value = 1; value <= 13; value++) {
-            const suitSymbol = suits[suit];
-            let valueSymbol;
-            if (value === 1) valueSymbol = 'a';
-            else if (value === 10) valueSymbol = 't';
-            else if (value === 11) valueSymbol = 'j';
-            else if (value === 12) valueSymbol = 'q';
-            else if (value === 13) valueSymbol = 'k';
-            else valueSymbol = value.toString();
-
-            imagePaths.push(`/static/img/${valueSymbol}${suitSymbol}.png`);
-        }
-    }
+    // Preload only the 3 available card back images
+    const imagePaths = [
+        '/static/img/red.jpg',
+        '/static/img/blue.jpg',
+        '/static/img/black.jpg'
+    ];
 
     let loadedCount = 0;
     const totalImages = imagePaths.length;
+
+    if (totalImages === 0) {
+        callback();
+        return;
+    }
 
     imagePaths.forEach(path => {
         const img = new Image();
         img.onload = () => {
             loadedCount++;
+            console.log(`Loaded card image: ${path}`);
             if (loadedCount === totalImages) {
-                console.log('All card images preloaded successfully');
+                console.log('All card back images preloaded successfully');
                 callback();
             }
         };
