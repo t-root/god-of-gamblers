@@ -180,11 +180,11 @@ function joinCurrentRoom() {
     });
  
 
-    // Set timeout for auto-reload if game doesn't start within 5 seconds
+    // Set timeout for auto-reload if game doesn't start (e.g. room missing or server slow)
     if (joinTimeout) clearTimeout(joinTimeout);
-    joinTimeout = setTimeout(() => { 
-            window.location.reload(); 
-    }, 1000);
+    joinTimeout = setTimeout(() => {
+        window.location.reload();
+    }, 5000);
 }
 
 // Event Listeners

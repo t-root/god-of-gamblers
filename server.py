@@ -1038,7 +1038,7 @@ def start_new_round(data):
         db.update_room_used_cards(room_id, used_cards)
 
     # Reset ready status for next round
-    for player_id in room_info_updated['players']:
+    for player_id in room_info['players']:
         db.ready_player_for_new_round(player_id, False, room_id, next_round)
 
     # Collect all owned cards from all players after round reset
