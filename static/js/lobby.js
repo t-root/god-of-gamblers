@@ -77,15 +77,21 @@ function setupEventListeners() {
 
 // Create Room
 function createRoom() {
-    const mode = parseInt(document.querySelector('input[name="mode"]:checked').value);
-    const maxBoosts = parseInt(maxBoostsSelect.value);
+    const modeValue = document.querySelector('input[name="mode"]:checked').value;
     const decks = parseInt(document.querySelector('input[name="decks"]:checked').value);
+    const gameType = modeValue === 'xidach' ? 'xidach' : 'magic';
 
-    socket.emit('create_room', {
-        mode: mode,
-        max_boosts: maxBoosts,
-        decks: decks
-    });
+    const payload = {
+        game_type: gameType,
+        decks: decks,
+        max_boosts: parseInt(maxBoostsSelect.value)
+    };
+
+    if (gameType !== 'xidach') {
+        payload.mode = parseInt(modeValue);
+    }
+
+    socket.emit('create_room', payload);
 }
 
 // Join Room
@@ -206,8 +212,9 @@ function showRoomInfo(data) {
 
     roomCreatedSection.style.display = 'block';
 
+    const gameType = data.game_type || 'magic';
     document.getElementById('roomIdDisplay').textContent = data.room_id;
-    document.getElementById('roomModeDisplay').textContent = `${data.mode} lá bài`;
+    document.getElementById('roomModeDisplay').textContent = gameType === 'xidach' ? '🃏 Xì Dách' : `${data.mode} lá bài`;
     document.getElementById('roomBoostDisplay').textContent = `${data.max_boosts} lần`;
 }
 

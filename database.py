@@ -14,13 +14,20 @@ class GameDatabase:
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS rooms (
                     id TEXT PRIMARY KEY,
-                    mode INTEGER NOT NULL,  -- 3 or 6 cards
+                    mode INTEGER NOT NULL,  -- 3 or 6 cards (or 2 for xidach's initial hand)
                     max_boosts INTEGER NOT NULL,
                     decks INTEGER DEFAULT 1,  -- Number of decks (1 or 2)
+                    game_type TEXT DEFAULT 'magic',  -- 'magic' or 'xidach'
                     used_cards TEXT DEFAULT '[]',  -- JSON array of used card indices
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+
+            # Migration: add game_type column to pre-existing databases
+            try:
+                conn.execute("ALTER TABLE rooms ADD COLUMN game_type TEXT DEFAULT 'magic'")
+            except sqlite3.OperationalError:
+                pass
 
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS room_players (
@@ -43,13 +50,13 @@ class GameDatabase:
                 )
             ''')
 
-    def create_room(self, room_id, mode, max_boosts, decks=1):
+    def create_room(self, room_id, mode, max_boosts, decks=1, game_type='magic'):
         """Create a new room with settings"""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute('''
-                INSERT INTO rooms (id, mode, max_boosts, decks)
-                VALUES (?, ?, ?, ?)
-            ''', (room_id, mode, max_boosts, decks))
+                INSERT INTO rooms (id, mode, max_boosts, decks, game_type)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (room_id, mode, max_boosts, decks, game_type))
 
     def add_player(self, player_id, room_id, name, identifier=None):
         """Add a player to a room"""
@@ -65,14 +72,14 @@ class GameDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT mode, max_boosts, decks, used_cards
+                SELECT mode, max_boosts, decks, used_cards, game_type
                 FROM rooms
                 WHERE id = ?
             ''', (room_id,))
             row = cursor.fetchone()
 
             if row:
-                mode, max_boosts, decks, used_cards_json = row
+                mode, max_boosts, decks, used_cards_json, game_type = row
                 current_round = self.get_current_round_number(room_id)
                 players = self.get_room_players(room_id, current_round)
                 used_cards = json.loads(used_cards_json) if used_cards_json else []
@@ -81,6 +88,7 @@ class GameDatabase:
                     'mode': mode,
                     'max_boosts': max_boosts,
                     'decks': decks,
+                    'game_type': game_type or 'magic',
                     'current_round': current_round,
                     'used_cards': used_cards,
                     'players': players

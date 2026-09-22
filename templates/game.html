@@ -83,6 +83,11 @@
         </div>
 
         <div class="controls">
+            {% if game_type == 'xidach' %}
+            <button class="control-btn" id="hitBtn">
+                Rút
+            </button>
+            {% endif %}
             <button class="control-btn" id="swapBtn" disabled>
                 Hoán bài
             </button>

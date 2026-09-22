@@ -19,7 +19,7 @@ pip install -r requirements.txt
 
 2. **Chạy server:**
 ```bash
-python server.py  # Sử dụng SQLite database để lưu trữ
+python run.py  # Sử dụng SQLite database để lưu trữ
 ```
 
 3. **Truy cập game:**
@@ -66,7 +66,7 @@ Mở browser và truy cập: `http://localhost:5000`
 
 ```
 game/
-├── server.py              # Flask server
+├── run.py                 # Flask server
 ├── requirements.txt       # Python dependencies
 ├── templates/
 │   ├── lobby.html        # Trang tạo/join phòng

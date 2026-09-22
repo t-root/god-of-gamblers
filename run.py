@@ -104,7 +104,7 @@ def join_via_url(room_id):
     room_id = room_id.upper()
     room_info = db.get_room_info(room_id)
     if room_info:
-        return render_template('game.html', room_id=room_id)
+        return render_template('game.html', room_id=room_id, game_type=room_info.get('game_type', 'magic'))
     else:
         return redirect(url_for('lobby'))
 
@@ -321,12 +321,14 @@ def schedule_weekly_cleanup():
 def create_room(data):
     """Create a new room with settings"""
     room_id = generate_room_id()
-    mode = data.get('mode', 3)  # 3 or 6 cards
-    max_boosts = data.get('max_boosts', 3)  # Maximum boost uses per round
+    game_type = data.get('game_type', 'magic')  # 'magic' or 'xidach'
     decks = data.get('decks', 1)  # Number of decks (1 or 2)
+    max_boosts = data.get('max_boosts', 3)  # Maximum boost uses per round
+
+    mode = 2 if game_type == 'xidach' else data.get('mode', 3)  # 2 (xidach), or 3/6 cards
 
     # Create room in database
-    db.create_room(room_id, mode, max_boosts, decks)
+    db.create_room(room_id, mode, max_boosts, decks, game_type)
 
     # Auto-generate player name
     player_name = 'Player1'
@@ -335,13 +337,14 @@ def create_room(data):
     # For room creator, don't set identifier yet - will be set on first join
     db.add_player(request.sid, room_id, player_name, None)
 
-    print(f"[ROOM] Room '{room_id}' created by {player_name}")
+    print(f"[ROOM] Room '{room_id}' ({game_type}) created by {player_name}")
     print(f"  Access: http://localhost:5000/room/{room_id}")
     print(f"  Network: http://{get_local_ip()}:5000/room/{room_id}")
     print()
 
     emit('room_created', {
         'room_id': room_id,
+        'game_type': game_type,
         'mode': mode,
         'max_boosts': max_boosts,
         'players': [{'name': player_name}]
@@ -485,6 +488,7 @@ def start_game_for_player(room_id, player_id):
         'mode': room_info['mode'],
         'max_boosts': room_info['max_boosts'],
         'decks': room_info['decks'],
+        'game_type': room_info.get('game_type', 'magic'),
         'chant_count': player.get('chant_count', 0),
         'total_swaps': player.get('total_swaps', 0),
         'flipped_cards': player.get('flipped_cards', []),
@@ -493,6 +497,42 @@ def start_game_for_player(room_id, player_id):
         'remaining_cards': remaining_cards,
         **room_stats
     }, to=player_id)
+
+@socketio.on('xidach_hit')
+def xidach_hit(data):
+    """Player draws one extra card onto their existing hand (Rút)"""
+    room_id = data.get('room_id', '').upper()
+    room_info = db.get_room_info(room_id)
+    if not room_info or room_info.get('game_type') != 'xidach':
+        return
+
+    player = room_info['players'].get(request.sid)
+    if not player:
+        return
+
+    if len(player['cards']) >= 5:
+        emit('error', {'message': 'Đã đủ 5 lá, không thể rút thêm!'}, to=request.sid)
+        return
+
+    current_round = db.get_current_round_number(room_id)
+    new_card = generate_cards(1, room_info['used_cards'], room_info['decks'])[0]
+    player['cards'].append(new_card)
+    db.update_player_cards(request.sid, player['cards'], room_id, current_round)
+
+    # Collect all owned cards from all players in the room
+    room_info_updated = db.get_room_info(room_id)
+    all_owned_cards = []
+    for pid, player_data in room_info_updated['players'].items():
+        for card in player_data['cards']:
+            if 'index' in card:
+                all_owned_cards.append(card['index'])
+    db.update_room_used_cards(room_id, all_owned_cards)
+
+    emit('card_drawn', {
+        'player_id': request.sid,
+        'used_cards': all_owned_cards,
+        'new_card': new_card
+    }, to=request.sid)
 
 @socketio.on('flip_card')
 def flip_card(data):

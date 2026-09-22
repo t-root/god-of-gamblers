@@ -575,10 +575,11 @@ h1 {
 }
 
         .cards-container.mode-6 {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(2, auto);
-            max-width: 450px; /* 140px * 3 + gaps */
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            max-width: 460px; /* 140px * 3 + gaps */
             margin-left: auto;
             margin-right: auto;
             gap: 10px;
@@ -1744,6 +1745,25 @@ h1 {
         font-size: 2.2rem;
     }
 
+    /* Smaller cards + more breathing room in the 3-column grid (6 lá / Xì Dách) */
+    .cards-container.mode-6 {
+        gap: 14px;
+        max-width: 340px;
+    }
+
+    .cards-container.mode-6 .card {
+        width: 92px;
+        height: 128px;
+    }
+
+    .cards-container.mode-6 .card-value {
+        font-size: 2.4rem;
+    }
+
+    .cards-container.mode-6 .card-suit {
+        font-size: 1.7rem;
+    }
+
     .controls {
         /* Keep horizontal layout on mobile */
         flex-direction: row;
@@ -1753,13 +1773,16 @@ h1 {
     }
 
     .control-btn {
-        flex: 1;
-        min-width: 70px;
-        max-width: 100px;
+        flex: 0 0 calc(33.333% - 7px);
+        max-width: 110px;
         min-height: 40px;
         height: 40px;
         font-size: 13px;
         padding: 8px 6px;
+    }
+
+    .controls.single-button .control-btn {
+        flex: 0 1 150px;
     }
 
     .overlay-title {

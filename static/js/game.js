@@ -24,6 +24,7 @@ socket.on('connect_error', function(error) {
 });
 let gameState = {
     mode: 3, // 3 or 6 cards
+    gameType: 'magic', // 'magic' or 'xidach'
     cards: [],
     selectedCardIndex: -1,
     boostTargetIndex: -1,
@@ -81,6 +82,7 @@ let gameState = {
 
 // DOM Elements
 const cardsContainer = document.getElementById('cardsContainer');
+const hitBtn = document.getElementById('hitBtn');
 const swapBtn = document.getElementById('swapBtn');
 const boostBtn = document.getElementById('boostBtn');
 const resetBtn = document.getElementById('resetBtn');
@@ -190,6 +192,9 @@ function joinCurrentRoom() {
 // Event Listeners
 function setupEventListeners() {
     // Game controls
+    if (hitBtn) hitBtn.addEventListener('click', function() {
+        socket.emit('xidach_hit', { room_id: gameState.roomId });
+    });
     if (swapBtn) swapBtn.addEventListener('click', startSwap);
     if (boostBtn) boostBtn.addEventListener('click', startBoost);
     if (resetBtn) resetBtn.addEventListener('click', resetGame);
@@ -283,6 +288,7 @@ socket.on('game_started', function(data) {
     gameState.cards = data.cards;
     gameState.usedCards = data.used_cards || [];
     gameState.mode = data.mode || 3;
+    gameState.gameType = data.game_type || 'magic';
     gameState.maxBoosts = data.max_boosts || 3;
     gameState.decks = data.decks || 1;
     gameState.chantCount = data.chant_count || 0;
@@ -301,8 +307,8 @@ socket.on('game_started', function(data) {
         titleElement.textContent = `🎴 BÀI ${gameState.mode || 3} LÁ 🎴`;
     }
 
-    // Add mode class for layout
-    if (gameState.mode === 6) {
+    // Add mode class for layout (also switches to grid once Xì Dách has drawn past 3 cards)
+    if (gameState.mode === 6 || gameState.cards.length > 3) {
         cardsContainer.classList.add('mode-6');
     } else {
         cardsContainer.classList.remove('mode-6');
@@ -335,6 +341,7 @@ socket.on('game_started', function(data) {
         // Disable other controls when folded
         swapBtn.disabled = true;
         boostBtn.disabled = true;
+        if (hitBtn) hitBtn.disabled = true;
 
         // Disable reveal cards button when folded (as set in fold function)
         const revealCardsBtn = document.getElementById('revealCardsBtn');
@@ -361,6 +368,7 @@ socket.on('game_started', function(data) {
         // Re-enable other controls
         if (swapBtn) swapBtn.disabled = false;
         if (boostBtn) boostBtn.disabled = false;
+        updateHitButtonState();
 
         // Ensure reveal cards button is enabled (for viewing only)
         const revealCardsBtn = document.getElementById('revealCardsBtn');
@@ -405,8 +413,29 @@ socket.on('player_joined', function(data) {
     showToast(`🆕 ${playerName} đã tham gia phòng! Tổng: ${data.total_players} người chơi`, 'info');
 });
 
+function updateHitButtonState() {
+    if (!hitBtn) return;
+    hitBtn.disabled = gameState.folded || gameState.cards.length >= 5;
+}
+
+socket.on('card_drawn', function(data) {
+    gameState.usedCards = data.used_cards || [];
+
+    if (data.player_id === socket.id && data.new_card) {
+        gameState.cards.push(data.new_card);
+
+        if (gameState.mode === 6 || gameState.cards.length > 3) {
+            cardsContainer.classList.add('mode-6');
+        }
+
+        updateHitButtonState();
+    }
+
+    updateCardDisplay();
+});
+
 socket.on('card_swapped', function(data) {
-   
+
     // Update used cards list
     gameState.usedCards = data.used_cards || [];
 
