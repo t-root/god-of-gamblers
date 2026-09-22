@@ -25,69 +25,10 @@ python server.py  # Sử dụng SQLite database để lưu trữ
 3. **Truy cập game:**
 Mở browser và truy cập: `http://localhost:5000`
 
-## 🚀 Deploy lên Railway
-
-### Chuẩn bị:
-1. Tạo tài khoản Railway tại [railway.app](https://railway.app)
-2. Cài đặt Railway CLI:
-```bash
-npm install -g @railway/cli
-# hoặc
-curl -fsSL https://railway.app/install.sh | sh
-```
-
-### Deploy:
-
-#### Cách 1: Sử dụng Railway CLI
-```bash
-# Đăng nhập Railway
-railway login
-
-# Tạo project mới
-railway init
-
-# Deploy
-railway up
-```
-
-#### Cách 2: Sử dụng GitHub (Khuyến nghị)
-```bash
-# Push code lên GitHub
-git add .
-git commit -m "Deploy to Railway"
-git push origin main
-
-# Tạo project trên Railway dashboard và connect GitHub repo
-# Railway sẽ tự động deploy khi có commit mới
-```
-
-### Cấu hình Database:
-Railway tự động tạo SQLite database. Nếu muốn sử dụng PostgreSQL:
-```bash
-# Trong Railway dashboard, add PostgreSQL database
-# Railway sẽ tự động set DATABASE_URL environment variable
-```
-
-### HTTPS & Domain:
-- Railway tự động cung cấp **HTTPS** miễn phí
-- Tự động cấp domain dạng: `your-app-name.up.railway.app`
-- Có thể custom domain trong settings
-
-### Monitoring:
-- Xem logs: `railway logs`
-- Restart app: `railway restart`
-- Scale app trong dashboard
-
-### Environment Variables:
-Railway tự động set:
-- `PORT`: Port của server
-- `RAILWAY_ENVIRONMENT`: "production"
-- `DATABASE_URL`: Nếu có database
-
 ## 🔧 Production Notes
 
-- **HTTPS Required**: Railway tự động có HTTPS, microphone sẽ hoạt động trên tất cả devices
-- **WebSocket**: Socket.IO hoạt động bình thường trên Railway
+- **HTTPS Required**: microphone sẽ hoạt động trên tất cả devices
+- **WebSocket**: Socket.IO hoạt động bình thường
 - **Static Files**: Được serve tự động bởi Flask
 - **Database**: SQLite ổn định cho small-scale, upgrade to PostgreSQL nếu cần
 

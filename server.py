@@ -1067,7 +1067,7 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
 
     # Check if running on production platforms
-    is_production = os.environ.get('FLY_APP_NAME') is not None or os.environ.get('RAILWAY_ENVIRONMENT') is not None
+    is_production = os.environ.get('FLY_APP_NAME') is not None
 
     # Check if SSL certificates exist for HTTPS (only for local development)
     use_https = os.path.exists('cert.pem') and os.path.exists('key.pem') and not is_production
@@ -1086,12 +1086,9 @@ if __name__ == '__main__':
     protocol = "https" if use_https else "http"
 
     if is_production:
-        # Production mode on Railway, Fly.io, or other platforms
+        # Production mode on Fly.io or other platforms
         print("=" * 60)
-        if os.environ.get('RAILWAY_ENVIRONMENT'):
-            print("*** GAME SERVER STARTED ON RAILWAY! ***")
-            print("🎉 HTTPS automatically enabled by Railway")
-        elif os.environ.get('FLY_APP_NAME'):
+        if os.environ.get('FLY_APP_NAME'):
             print("*** GAME SERVER STARTED ON FLY.IO! ***")
         else:
             print("*** GAME SERVER STARTED ON PRODUCTION! ***")
